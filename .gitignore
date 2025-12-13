@@ -165,5 +165,7 @@ yarn-error.log*
 .env.*.local
 .env
 
+backend/uploads
+
 # Lockfiles for alternate package managers (ignore if you use them locally)
 # pnpm-lock.yaml
