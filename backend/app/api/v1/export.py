@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
+from app.print_logging import log
 from app.schemas.export import ExportRouteResponse
 from app.core.storage import ROUTES
 
@@ -10,6 +11,7 @@ async def export_route(
     route_id: str,
     format: str = Query(..., pattern="^(gpx|google_maps|polyline)$")
 ):
+    log(f"export_route called route_id={route_id} format={format}")
     route = ROUTES.get(route_id)
     if not route or not route["polyline"]:
         raise HTTPException(status_code=404, detail="Route not ready")

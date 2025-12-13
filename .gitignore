@@ -138,3 +138,32 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# Node / Frontend (React / Vite)
+# Ignore node modules and build artifacts for frontend tooling
+node_modules/
+**/node_modules/
+
+# Vite / build output
+dist/
+build/
+frontend/dist/
+
+# Vite dev cache
+.vite/
+
+# Parcel / other bundlers
+.parcel-cache/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files (do NOT commit secrets)
+.env.local
+.env.*.local
+.env
+
+# Lockfiles for alternate package managers (ignore if you use them locally)
+# pnpm-lock.yaml

@@ -1,4 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
+
+from app.print_logging import log
+
 from app.schemas.upload import UploadResponse
 from app.schemas.process import ProcessRouteRequest, ProcessRouteResponse
 from app.schemas.status import RouteStatusResponse
@@ -9,49 +12,70 @@ from app.core.storage import ROUTES, JOBS, create_route, create_job
 from app.core.image_loader import save_image
 from app.core.geo_utils import expand_bbox
 from app.core.route_extractor import extract_image_space_polyline
-from app.core.map_matching import match_to_map
+from app.matching.pixel_to_geo import pixel_polyline_to_geo
+from app.core.polyline_utils import encode_polyline
 
 router = APIRouter()
 
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_route_image(file: UploadFile = File(...)):
+    log("upload_route_image called")
     route_id = create_route()
     image_path = await save_image(file, route_id)
 
     ROUTES[route_id]["image_path"] = image_path
+    ROUTES[route_id]["status"] = "uploaded"
 
     return UploadResponse(route_id=route_id, status="uploaded")
 
 
 @router.post("/{route_id}/process", response_model=ProcessRouteResponse)
 async def process_route(route_id: str, payload: ProcessRouteRequest):
-    if route_id not in ROUTES:
+    log(f"process_route called route_id={route_id}")
+    route = ROUTES.get(route_id)
+    if not route:
         raise HTTPException(status_code=404, detail="Route not found")
+
+    if not payload.search_scope:
+        raise HTTPException(
+            status_code=400,
+            detail="search_scope (bounding box) is required"
+        )
 
     job_id = create_job(route_id)
 
-    search_scope = None
-    if payload.search_scope:
-        expanded = expand_bbox(
-            payload.search_scope.bbox.model_dump(),
-            payload.search_scope.padding_meters
-        )
-        search_scope = expanded
+    expanded_bbox = expand_bbox(
+        payload.search_scope.bbox.model_dump(),
+        payload.search_scope.padding_meters
+    )
 
-    ROUTES[route_id]["search_scope"] = search_scope
+    ROUTES[route_id]["search_scope"] = expanded_bbox
     ROUTES[route_id]["status"] = "processing"
 
-    # --- Stub processing pipeline ---
-    image_polyline = extract_image_space_polyline(ROUTES[route_id]["image_path"])
-    geo_polyline = match_to_map(image_polyline, search_scope)
+    # --- CV PIPELINE ---
+    image_polyline, image_size = extract_image_space_polyline(
+        route["image_path"]
+    )
 
-    ROUTES[route_id]["polyline"] = geo_polyline
-    ROUTES[route_id]["confidence"] = 0.86
-    ROUTES[route_id]["status"] = "completed"
+    geo_polyline = pixel_polyline_to_geo(
+        image_polyline,
+        image_size,
+        expanded_bbox
+    )
 
-    JOBS[job_id]["status"] = "completed"
-    JOBS[job_id]["progress"] = 1.0
+    ROUTES[route_id].update({
+        "image_polyline": image_polyline,
+        "polyline": geo_polyline,
+        "encoded_polyline": encode_polyline(geo_polyline),
+        "confidence": 0.85,
+        "status": "completed"
+    })
+
+    JOBS[job_id].update({
+        "status": "completed",
+        "progress": 1.0
+    })
 
     return ProcessRouteResponse(
         route_id=route_id,
@@ -62,20 +86,25 @@ async def process_route(route_id: str, payload: ProcessRouteRequest):
 
 @router.get("/{route_id}/status", response_model=RouteStatusResponse)
 async def get_route_status(route_id: str):
-    if route_id not in ROUTES:
+    log(f"get_route_status called route_id={route_id}")
+    route = ROUTES.get(route_id)
+    if not route:
         raise HTTPException(status_code=404, detail="Route not found")
+
+    progress = 1.0 if route["status"] == "completed" else 0.3
 
     return RouteStatusResponse(
         route_id=route_id,
-        status=ROUTES[route_id]["status"],
-        progress=1.0 if ROUTES[route_id]["status"] == "completed" else 0.5
+        status=route["status"],
+        progress=progress
     )
 
 
 @router.get("/{route_id}/preview", response_model=RoutePreviewResponse)
 async def get_route_preview(route_id: str):
+    log(f"get_route_preview called route_id={route_id}")
     route = ROUTES.get(route_id)
-    if not route or not route["polyline"]:
+    if not route or route["status"] != "completed":
         raise HTTPException(status_code=404, detail="Route not ready")
 
     return RoutePreviewResponse(
@@ -83,18 +112,19 @@ async def get_route_preview(route_id: str):
         confidence=route["confidence"],
         polyline={
             "geo": route["polyline"],
-            "encoded": None
+            "encoded": route["encoded_polyline"]
         },
         polyline_image_space={
-            "points": [[120, 450], [130, 460]]
+            "points": route["image_polyline"]
         }
     )
 
 
 @router.post("/{route_id}/refine", response_model=RefineRouteResponse)
 async def refine_route(route_id: str, payload: RefineRouteRequest):
+    log(f"refine_route called route_id={route_id}")
     if route_id not in ROUTES:
         raise HTTPException(status_code=404, detail="Route not found")
 
-    # Stub: refinement logic will re-run map matching later
-    return RefineRouteResponse(status="refinement_applied")
+    # Placeholder: refinement comes later
+    return RefineRouteResponse(status="refinement_not_enabled")
