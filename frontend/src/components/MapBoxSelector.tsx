@@ -1,62 +1,71 @@
-import React from "react";
-import { GoogleMap, DrawingManager, useLoadScript } from "@react-google-maps/api";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw";
+import "leaflet-draw/dist/leaflet.draw.css";
+import { useEffect } from "react";
 
-const libraries: any = ["drawing"];
+function DrawControl({ onBoxSelected }: any) {
+  const map = useMap();
 
-interface MapBoxSelectorProps {
-  onBoxSelected: (bbox: { north: number; east: number; south: number; west: number }) => void;
+  useEffect(() => {
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    const drawControl = new L.Control.Draw({
+      draw: {
+        rectangle: true,
+        polygon: false,
+        polyline: false,
+        circle: false,
+        marker: false,
+        circlemarker: false,
+      },
+      edit: {
+        featureGroup: drawnItems,
+        edit: false,
+        remove: false,
+      },
+    });
+
+    map.addControl(drawControl);
+
+    map.on(L.Draw.Event.CREATED, (e: any) => {
+      const layer = e.layer;
+      drawnItems.clearLayers();
+      drawnItems.addLayer(layer);
+
+      const bounds = layer.getBounds();
+
+      onBoxSelected({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest(),
+      });
+    });
+
+    return () => {
+      map.removeControl(drawControl);
+      map.removeLayer(drawnItems);
+    };
+  }, [map]);
+
+  return null;
 }
 
-export default function MapBoxSelector({ onBoxSelected }: MapBoxSelectorProps) {
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_KEY,
-    libraries,
-  });
-
-  if (loadError) return <div>Error loading map</div>;
-  if (!isLoaded) return <div>Loading map...</div>;
-
+export default function MapBoxSelector({ onBoxSelected }: any) {
   return (
-    <GoogleMap
-      mapContainerStyle={{ width: "100%", height: "400px" }}
+    <MapContainer
+      center={[12.9716, 77.5946]}
       zoom={13}
-      center={{ lat: 12.9716, lng: 77.5946 }} // Default center, can make dynamic later
+      style={{ height: "400px", width: "100%" }}
     >
-      <DrawingManager
-        options={{
-          drawingControl: true,
-          drawingControlOptions: {
-            drawingModes: [google.maps.drawing.OverlayType.RECTANGLE],
-            position: google.maps.ControlPosition.TOP_CENTER,
-          },
-          rectangleOptions: {
-            fillColor: "#ffff00",
-            fillOpacity: 0.2,
-            strokeColor: "#ff0000",
-            strokeWeight: 2,
-            clickable: false,
-            editable: true,
-            draggable: false,
-          },
-        }}
-        onRectangleComplete={(rect) => {
-          const bounds = rect.getBounds();
-          if (!bounds) return;
-
-          const ne = bounds.getNorthEast();
-          const sw = bounds.getSouthWest();
-
-          onBoxSelected({
-            north: ne.lat(),
-            east: ne.lng(),
-            south: sw.lat(),
-            west: sw.lng(),
-          });
-
-          // Optional: remove rectangle after selection or keep it for reference
-          rect.setMap(null);
-        }}
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution="© OpenStreetMap contributors"
       />
-    </GoogleMap>
+      <DrawControl onBoxSelected={onBoxSelected} />
+    </MapContainer>
   );
 }
