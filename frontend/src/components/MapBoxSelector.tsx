@@ -12,6 +12,7 @@ function DrawControl({ onBoxSelected }: any) {
     const drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
 
+    // @ts-ignore
     const drawControl = new L.Control.Draw({
       draw: {
         rectangle: true,
@@ -30,6 +31,7 @@ function DrawControl({ onBoxSelected }: any) {
 
     map.addControl(drawControl);
 
+    // @ts-ignore
     map.on(L.Draw.Event.CREATED, (e: any) => {
       const layer = e.layer;
       drawnItems.clearLayers();

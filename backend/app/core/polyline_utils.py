@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 LatLng = Tuple[float, float]
 
@@ -40,3 +40,8 @@ def _encode_value(value: int) -> str:
 
     encoded += chr(value + 63)
     return encoded
+
+def tuples_to_latlng(
+    polyline: List[Tuple[float, float]]
+) -> List[Dict[str, float]]:
+    return [{"lat": lat, "lng": lng} for lat, lng in polyline]

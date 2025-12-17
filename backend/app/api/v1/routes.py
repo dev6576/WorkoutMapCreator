@@ -5,15 +5,16 @@ from app.print_logging import log
 from app.schemas.upload import UploadResponse
 from app.schemas.process import ProcessRouteRequest, ProcessRouteResponse
 from app.schemas.status import RouteStatusResponse
-from app.schemas.route import RoutePreviewResponse
+from app.schemas.route import RoutePreviewResponse, Polyline, ImageSpacePolyline
 from app.schemas.refine import RefineRouteRequest, RefineRouteResponse
+from app.schemas.common import LatLng
 
 from app.core.storage import ROUTES, JOBS, create_route, create_job
 from app.core.image_loader import save_image
 from app.core.geo_utils import expand_bbox
 from app.core.route_extractor import extract_image_space_polyline
 from app.matching.pixel_to_geo import pixel_polyline_to_geo
-from app.core.polyline_utils import encode_polyline
+from app.core.polyline_utils import encode_polyline, tuples_to_latlng
 
 router = APIRouter()
 
@@ -58,16 +59,15 @@ async def process_route(route_id: str, payload: ProcessRouteRequest):
         route["image_path"]
     )
 
-    geo_polyline = pixel_polyline_to_geo(
-        image_polyline,
-        image_size,
-        expanded_bbox
-    )
+
+    geo_polyline_raw = pixel_polyline_to_geo(image_polyline, image_size, expanded_bbox)
+
+    geo_polyline = [LatLng(lat=lat, lng=lng) for lat, lng in geo_polyline_raw]  # Convert tuples to LatLng
 
     ROUTES[route_id].update({
         "image_polyline": image_polyline,
         "polyline": geo_polyline,
-        "encoded_polyline": encode_polyline(geo_polyline),
+        "encoded_polyline": encode_polyline([(p.lat, p.lng) for p in geo_polyline]),
         "confidence": 0.85,
         "status": "completed"
     })
@@ -106,18 +106,20 @@ async def get_route_preview(route_id: str):
     route = ROUTES.get(route_id)
     if not route or route["status"] != "completed":
         raise HTTPException(status_code=404, detail="Route not ready")
+    geo_points = [LatLng(lat=pt[1], lng=pt[3]) if isinstance(pt, tuple) else pt for pt in route["polyline"]]
 
     return RoutePreviewResponse(
         route_id=route_id,
         confidence=route["confidence"],
         polyline={
-            "geo": route["polyline"],
-            "encoded": route["encoded_polyline"]
+            "geo": geo_points,
+            "encoded": route.get("encoded_polyline")
         },
         polyline_image_space={
-            "points": route["image_polyline"]
+            "points": route.get("image_polyline", [])
         }
     )
+
 
 
 @router.post("/{route_id}/refine", response_model=RefineRouteResponse)
