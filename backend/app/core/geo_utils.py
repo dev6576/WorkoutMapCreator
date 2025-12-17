@@ -17,3 +17,31 @@ def expand_bbox(bbox: dict, padding_meters: int) -> dict:
         "east": bbox["east"] + lng_pad,
         "west": bbox["west"] - lng_pad
     }
+
+def normalize_bbox(bbox: dict) -> dict:
+    """
+    Normalize bbox keys to:
+    min_lat, min_lon, max_lat, max_lon
+    """
+    if "min_lat" in bbox and "min_lon" in bbox:
+        return bbox
+
+    # common frontend format
+    if {"north", "south", "east", "west"}.issubset(bbox):
+        return {
+            "min_lat": bbox["south"],
+            "max_lat": bbox["north"],
+            "min_lon": bbox["west"],
+            "max_lon": bbox["east"],
+        }
+
+    # lat/lng naming
+    if {"min_lat", "max_lat", "min_lng", "max_lng"}.issubset(bbox):
+        return {
+            "min_lat": bbox["min_lat"],
+            "max_lat": bbox["max_lat"],
+            "min_lon": bbox["min_lng"],
+            "max_lon": bbox["max_lng"],
+        }
+
+    raise ValueError(f"Unsupported bbox format: {bbox}")

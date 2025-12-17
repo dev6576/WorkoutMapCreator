@@ -1,28 +1,27 @@
-from typing import List, Tuple, Dict
-
-LatLng = Tuple[float, float]
+from typing import List, Tuple
 
 
 def pixel_polyline_to_geo(
-    pixel_points: List[Tuple[int, int]],
+    pixel_polyline: List[Tuple[int, int]],
     image_size: Tuple[int, int],
-    bbox: Dict[str, float]
-) -> List[LatLng]:
+    bbox: dict
+) -> List[Tuple[float, float]]:
     """
-    Affine pixel → geo transform using bounding box.
+    bbox = {
+      min_lon, min_lat, max_lon, max_lat
+    }
     """
     img_w, img_h = image_size
+    min_lon = bbox["min_lon"]
+    min_lat = bbox["min_lat"]
+    max_lon = bbox["max_lon"]
+    max_lat = bbox["max_lat"]
 
-    lat_min = bbox["south"]
-    lat_max = bbox["north"]
-    lon_min = bbox["west"]
-    lon_max = bbox["east"]
+    geo = []
 
-    geo_points = []
+    for x, y in pixel_polyline:
+        lon = min_lon + (x / img_w) * (max_lon - min_lon)
+        lat = max_lat - (y / img_h) * (max_lat - min_lat)
+        geo.append((lat, lon))
 
-    for x, y in pixel_points:
-        lon = lon_min + (x / img_w) * (lon_max - lon_min)
-        lat = lat_max - (y / img_h) * (lat_max - lat_min)
-        geo_points.append((lat, lon))
-
-    return geo_points
+    return geo

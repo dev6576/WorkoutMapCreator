@@ -1,18 +1,11 @@
-import math
-from typing import List, Tuple
-
-LatLng = Tuple[float, float]
+import numpy as np
 
 
-def hausdorff_lite(a: List[LatLng], b: List[LatLng]) -> float:
-    """
-    Lower distance = better match.
-    """
+def hausdorff(a, b):
     def dist(p, q):
-        return math.hypot(p[0] - q[0], p[1] - q[1])
+        return np.linalg.norm(np.array(p) - np.array(q))
 
-    total = 0.0
-    for p in a:
-        total += min(dist(p, q) for q in b)
+    def h(A, B):
+        return max(min(dist(a, b) for b in B) for a in A)
 
-    return total / max(len(a), 1)
+    return max(h(a, b), h(b, a))

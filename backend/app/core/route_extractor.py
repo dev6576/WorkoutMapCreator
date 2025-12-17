@@ -1,40 +1,37 @@
 from typing import List, Tuple
-from PIL import Image
-
+from pathlib import Path
+from app.cv.extractor import RouteCVExtractor
 from app.print_logging import log
 
 
-def extract_image_space_polyline(
-    image_path: str
-) -> Tuple[List[List[int]], Tuple[int, int]]:
+def extract_image_space_polyline(image_path: str) -> tuple[list[tuple[int, int]], tuple[int, int]]:
     """
-    Extracts a route polyline in IMAGE SPACE (pixel coordinates).
-
     Returns:
-    - polyline: List of [x, y] pixel points
-    - image_size: (width, height)
+      - ordered pixel polyline [(x, y), ...]
+      - image_size (width, height)
     """
+    log("extract_image_space_polyline called")
+    debug_dir = Path(image_path).parent / "debug"
+    debug_dir.mkdir(exist_ok=True)
 
-    log(f"extract_image_space_polyline called image_path={image_path}")
+    extractor = RouteCVExtractor(
+        debug=True,
+        debug_dir=str(debug_dir)
+    )
+    result = extractor.extract(image_path)
 
-    # --- Load image to get dimensions ---
-    with Image.open(image_path) as img:
-        width, height = img.size
+    if result.primary_candidate_id is None:
+        raise ValueError("No valid route detected in image")
 
-    # --- TEMP CV STUB ---
-    # This will later be replaced with:
-    # - edge detection
-    # - skeletonization
-    # - contour tracing
-    # - OCR-assisted ordering
-    polyline = [
-        [int(0.3 * width), int(0.6 * height)],
-        [int(0.35 * width), int(0.62 * height)],
-        [int(0.45 * width), int(0.7 * height)],
-        [int(0.55 * width), int(0.75 * height)],
-    ]
+    primary = next(
+        c for c in result.components
+        if c.id == result.primary_candidate_id
+    )
 
-    log(f"Extracted {len(polyline)} polyline points")
-    log(f"Image size width={width}, height={height}")
+    log(
+        f"Primary route selected: "
+        f"points={len(primary.pixel_polyline)} "
+        f"confidence={result.confidence:.2f}"
+    )
 
-    return polyline, (width, height)
+    return primary.pixel_polyline, (result.image_width, result.image_height)

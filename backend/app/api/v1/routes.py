@@ -11,7 +11,7 @@ from app.schemas.common import LatLng
 
 from app.core.storage import ROUTES, JOBS, create_route, create_job
 from app.core.image_loader import save_image
-from app.core.geo_utils import expand_bbox
+from app.core.geo_utils import expand_bbox, normalize_bbox
 from app.core.route_extractor import extract_image_space_polyline
 from app.matching.pixel_to_geo import pixel_polyline_to_geo
 from app.core.polyline_utils import encode_polyline, tuples_to_latlng
@@ -46,10 +46,13 @@ async def process_route(route_id: str, payload: ProcessRouteRequest):
 
     job_id = create_job(route_id)
 
-    expanded_bbox = expand_bbox(
+    
+    raw_bbox = expand_bbox(
         payload.search_scope.bbox.model_dump(),
         payload.search_scope.padding_meters
     )
+
+    expanded_bbox = normalize_bbox(raw_bbox)
 
     ROUTES[route_id]["search_scope"] = expanded_bbox
     ROUTES[route_id]["status"] = "processing"

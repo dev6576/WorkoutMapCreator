@@ -1,59 +1,11 @@
-from typing import List, Tuple
-import math
+def project_point_to_polyline(point, polyline):
+    closest = None
+    min_dist = float("inf")
 
-LatLng = Tuple[float, float]
+    for p in polyline:
+        d = abs(point[0] - p[0]) + abs(point[1] - p[1])
+        if d < min_dist:
+            min_dist = d
+            closest = p
 
-
-def project_markers_onto_path(
-    markers: List[Tuple[int, int]],
-    marker_values: List[int],
-    geo_path: List[LatLng]
-) -> List[Tuple[int, float]]:
-    """
-    Projects markers onto path and returns (marker_value, path_distance).
-    """
-    projections = []
-
-    for (lat, lon), value in zip(markers, marker_values):
-        dist = _closest_distance_along_path((lat, lon), geo_path)
-        projections.append((value, dist))
-
-    return projections
-
-
-def _closest_distance_along_path(point, path):
-    cumulative = 0.0
-    best = float("inf")
-    traveled = 0.0
-
-    for i in range(len(path) - 1):
-        p1, p2 = path[i], path[i + 1]
-        seg_len = _dist(p1, p2)
-
-        d = _point_to_segment_dist(point, p1, p2)
-        if d < best:
-            best = d
-            traveled = cumulative
-
-        cumulative += seg_len
-
-    return traveled
-
-
-def _point_to_segment_dist(p, a, b):
-    # Euclidean approximation (sufficient locally)
-    ax, ay = a
-    bx, by = b
-    px, py = p
-
-    dx, dy = bx - ax, by - ay
-    if dx == dy == 0:
-        return math.hypot(px - ax, py - ay)
-
-    t = max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / (dx*dx + dy*dy)))
-    proj = (ax + t * dx, ay + t * dy)
-    return math.hypot(px - proj[0], py - proj[1])
-
-
-def _dist(a, b):
-    return math.hypot(a[0] - b[0], a[1] - b[1])
+    return closest

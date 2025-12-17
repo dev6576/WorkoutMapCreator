@@ -1,20 +1,9 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Dict
-
-LatLng = Tuple[float, float]
-
-
-@dataclass
-class RoadSegment:
-    id: str
-    geometry: List[LatLng]
-    name: str | None = None
+from typing import List, Tuple
 
 
 @dataclass
 class MapMatchCandidate:
-    candidate_id: str
-    polyline: List[LatLng]
+    osm_way_id: int
+    geo_polyline: List[Tuple[float, float]]
     score: float
-    breakdown: Dict[str, float]
-    metadata: Dict
