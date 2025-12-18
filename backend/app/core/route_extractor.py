@@ -24,9 +24,14 @@ def extract_image_space_polyline(image_path: str) -> tuple[list[tuple[int, int]]
         raise ValueError("No valid route detected in image")
 
     primary = next(
-        c for c in result.components
-        if c.id == result.primary_candidate_id
+        (c for c in result.components
+        if c.id == result.primary_candidate_id),
+        None
     )
+
+    if primary is None:
+        raise ValueError("No valid route extracted from image")
+
 
     log(
         f"Primary route selected: "

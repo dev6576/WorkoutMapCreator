@@ -1,9 +1,6 @@
-fastapi==0.110.0
-uvicorn[standard]==0.29.0
-pydantic==2.6.4
-python-multipart==0.0.9
+numpy==1.26.4
+opencv-contrib-python==4.10.0.84
 shapely==2.0.3
-pillow
-opencv-python-headless
-numpy 
-scikit-image
+scikit-image>=0.22
+fastapi
+uvicorn
